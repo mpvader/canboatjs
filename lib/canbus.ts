@@ -67,6 +67,7 @@ export function CanbusStream(this: any, options: any) {
     )
   }
   this.reconnecting = false // Guard flag to prevent concurrent reconnections
+  this.ended = false
   this.stoppingChannel = false // Flag to track intentional stops
   this.start()
 
@@ -164,6 +165,10 @@ CanbusStream.prototype._setupNoDataTimer = function () {
 }
 
 CanbusStream.prototype.connect = function () {
+  // A reconnect planned before end() would open the port again.
+  if (this.ended) {
+    return false
+  }
   // Prevent concurrent reconnection attempts
   if (this.reconnecting) {
     if (this.options.app) {
@@ -251,6 +256,9 @@ CanbusStream.prototype.connect = function () {
       }
 
       setTimeout(() => {
+        if (this.ended) {
+          return
+        }
         this.setProviderError('Reconnecting...')
         this.connect()
       }, 2000)
@@ -493,6 +501,7 @@ CanbusStream.prototype._transform = function (
 }
 
 CanbusStream.prototype.end = function () {
+  this.ended = true
   unsubscribeApp(this)
   if (this.candevice) {
     try {
